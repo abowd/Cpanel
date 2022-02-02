@@ -1,0 +1,196 @@
+import React, { createRef, useState, useEffect } from 'react'
+import axios from 'axios';
+import { useHistory } from 'react-router';
+import { useToasts } from "react-toast-notifications";
+import { Form, FormGroup, Label, Input, FormText, Row, Col, Badge, Table, Card, Button, Modal, ModalBody, ModalFooter, ModalHeader,CardBody, Breadcrumb, BreadcrumbItem, Progress, Alert } from 'reactstrap';
+const CategoryServices = (props) => {
+    const history = useHistory();
+    const [categorysList, setcategorysList] = useState([]);
+    const [serviceList, setserviceList] = useState([]);
+    const [nullList, setnullList] = useState(0);
+    const [success, setSuccess] = useState(false);
+    const myForm = createRef();
+    const [deleteModal, setDeleteModal] = useState(false);
+    const [serviceName, setserviceName] = useState("");
+    const [uId, setserviceId] = useState("");
+    const { addToast } = useToasts();
+    const [serialNum] = useState(1);
+    useEffect(() => {
+        axios.get('api/category/GetCategories')
+            .then((response) => {
+                setcategorysList(response.data)
+            });
+    }, [success])
+
+
+    const handlefilter = (id) => {
+        axios.get(`api/Service/ServiceByCatagory/${id}`).then((data) => {
+            if (data.data == 1) {
+                setnullList(data.data)
+                setserviceList([])
+            }
+            else {
+                setserviceList(data.data)
+                setnullList(0)
+            }
+
+        })
+    }
+
+    const toggleDanger = (en, ar, id) => {
+        setserviceName(en + "(" + ar + ")")
+        setserviceId(id)
+        setDeleteModal(true)
+    }
+
+    // on Close Delete Modal
+    const closeDeleteModal = () => {
+        setDeleteModal(false);
+        setserviceName("")
+        setserviceId((""))
+
+    }
+    var token = localStorage.getItem("token");
+    const role = localStorage.getItem("role");
+    const config = {
+        headers: { Authorization: `Bearer ${token}` }
+    };
+    const handleSubmit = (event) => {
+        event.preventDefault();
+        const subdata = new FormData(event.target);
+        axios.post('api/OrderRequest/NewOrderRequest', subdata, { headers: { "Authorization": `Bearer ${token}` } }).then(response => {
+            if (response.data.id != 0) {
+                setDeleteModal(false);
+                addToast('Order Confirm Successfully', { appearance: 'success' });
+            }
+            else {
+                addToast('Something Wrong', { appearance: 'error' });
+            }
+        });
+
+    }
+
+    return (
+        <div>
+            <div className="sf-table-custom">
+                <Breadcrumb className="mb-3">
+                    <BreadcrumbItem>
+                        <h4> Category Services</h4>
+                    </BreadcrumbItem>
+                </Breadcrumb>
+                <Card>
+                    <CardBody>
+
+                        <div>
+                            <h4> Select Category </h4>
+                            <Progress style={{ height: "0.5rem" }} color="warning" className="mt-3" value={100} he />
+                        </div>
+
+                        <Row className="mt-4">
+                            {
+                                categorysList?.map((category, i) => <Col lg="2" md="2" xs="3" key={category.id} >
+
+                                    <Badge onClick={() => handlefilter(category.id)} pill style={{ padding: "8px 12px", marginBottom: "10px", cursor: "pointer", borderRadius: "30px" }}>
+                                        {category.name_EN}
+                                    </Badge>
+                                </Col>)}
+                        </Row>
+
+                        {
+                            nullList === 1 &&
+                            <Alert color="danger" className="mt-5">
+                                This Category no assign Service, Select another Category .
+                            </Alert>
+                        }
+
+                        {
+                            serviceList.length != 0 &&
+
+                            <div className="mt-5">
+                                <Table striped>
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>English Name</th>
+                                            <th>Arabic Name</th>
+                                            <th>Category </th>
+                                            {role !== "Admin" &&
+                                                <th>Action </th>}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {
+                                            serviceList?.map((service, i) => <tr key={service.id} >
+                                                <td>{serialNum + i}</td>
+                                                <td>{service.name_EN}</td>
+                                                <td>{service.name_AR}</td>
+                                                <td>{service.categoryNameEN + "(" + service.categoryNameAR + ")"}</td>
+                                                {role !== "Admin" &&                        
+                                                    <td> <Button color="info" size="sm" onClick={() => toggleDanger(service.name_EN, service.name_AR, service.id)}> Order Now</Button> </td>
+                                                }
+                                                
+                                            </tr>
+                                            )}
+                                    </tbody>
+                                </Table>
+
+
+                                <Modal isOpen={deleteModal} toggle={closeDeleteModal} backdrop="static">
+                                    <ModalHeader style={{ fontSize:"16px"}}>Are You Sure to this {serviceName}  </ModalHeader>
+
+                                    <ModalBody>
+
+                                        <Form ref={myForm} onSubmit={handleSubmit}>
+
+                                            <FormGroup row className="has-icon-left position-relative">
+                                                <Input type="hidden" id="ServiceId" name="ServiceId" value={uId} />
+                                            </FormGroup>
+
+                                            <FormGroup>
+                                                <Label for="exampleSelect">Select pay type</Label>
+                                                <Input type="select" name="PaymentType" id="PaymentType" required>
+                                                    <option value=""> Select pay type </option>
+                                                    <option value="Apple Pay"> Apple Pay</option>
+                                                    <option value="Bank transfer"> Bank transfer</option>
+                                                    <option value="Credit card"> Credit card</option>
+                                                   
+                                                </Input>
+                                            </FormGroup>
+
+                                            <FormGroup>
+                                                <Label for="StartDate">Start Date</Label>
+                                                <Input type="date" name="StartDate" id="StartDate" required />
+                                            </FormGroup>
+
+                                            <FormGroup>
+                                                <Label for="EndDate">End Date</Label>
+                                                <Input type="date" name="EndDate" id="EndDate" required />
+                                            </FormGroup>
+
+                                            <FormGroup className="mt-3">
+                                                <Label for="File">Attached File</Label>
+                                                <Input type="file" name="File" id="File" required />
+                                            </FormGroup>
+
+                                            <FormGroup className="mt-5" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                <Button size="sm" color="success"> Confirm Order </Button>
+                                                <Button size="sm" color="danger" onClick={closeDeleteModal}> Cancel </Button>
+                                            </FormGroup>
+
+                                        </Form>
+                                    </ModalBody>
+                                </Modal>
+
+                            </div>
+
+                        }
+
+                    </CardBody>
+                </Card>
+            </div>
+        </div>
+    )
+
+}
+
+export default CategoryServices;
